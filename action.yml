@@ -1,0 +1,24 @@
+name: "Dependabot Cron Action"
+description: "Merge Dependabot pull requests in a cron schedule"
+author: "Petri Lehtinen <https://github.com/akheron>"
+inputs:
+  token:
+    required: true
+    description: "GitHub token"
+  auto-merge:
+    description: "major, minor or patch. Defaults to minor."
+  merge-method:
+    required: false
+    description: "merge, squash or rebase. Defaults to merge."
+  pr-author:
+    required: false
+    description: "Author whose pull requests to merge. Defaults to dependabot[bot]."
+  debug:
+    required: false
+    description: "If true, output debug logging. Defaults to false."
+runs:
+  using: "node12"
+  main: "dist/index.js"
+branding:
+  icon: "umbrella"
+  color: "green"

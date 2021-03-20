@@ -535,7 +535,7 @@ const core_1 = __webpack_require__(470);
 const github_1 = __webpack_require__(469);
 const semver_1 = __webpack_require__(876);
 const debug = (message) => {
-    if (core_1.getInput('debug') === 'debug') {
+    if (core_1.getInput('debug')) {
         console.log('DEBUG', message);
     }
 };
@@ -574,8 +574,7 @@ const getSemver = (prTitle) => {
             .split('\n')[0]
             .substr(0, 8)
             .trim();
-        debug(prTitle);
-        debug(`=> from version ${fromVersion} to version ${toVersion}`);
+        debug(`Get versions from ${prTitle} => from version ${fromVersion} to version ${toVersion}`);
         if (fromVersion && toVersion) {
             return semver_1.diff(fromVersion, toVersion);
         }
@@ -585,14 +584,19 @@ const getSemver = (prTitle) => {
 };
 const approve = (octokit, options) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        yield octokit.pulls.createReview({
+        const x = yield octokit.pulls.createReview({
             owner: options.owner,
             repo: options.repo,
             pull_number: options.prNumber,
             event: 'APPROVE',
         });
+        return true;
     }
-    catch (error) { }
+    catch (err) {
+        info(`Approve failed: ${err.message}`);
+        debug(err);
+        return false;
+    }
 });
 const merge = (octokit, options) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -605,6 +609,7 @@ const merge = (octokit, options) => __awaiter(void 0, void 0, void 0, function* 
         return true;
     }
     catch (err) {
+        info(`Merge failed: ${err.message}`);
         debug(err);
         return false;
     }
@@ -620,7 +625,7 @@ const run = () => __awaiter(void 0, void 0, void 0, function* () {
     const autoMerge = getAutoMerge(core_1.getInput('auto-merge'));
     const mergeMethod = getMergeMethod(core_1.getInput('merge-method'));
     const pullRequests = (yield octokit.pulls.list({ owner, repo, state: 'open' })).data.filter((pr) => { var _a; return ((_a = pr.user) === null || _a === void 0 ? void 0 : _a.login) === prAuthor; });
-    debug(`Found ${pullRequests.length} matching pull requests`);
+    info(`Found ${pullRequests.length} matching pull requests`);
     for (const pr of pullRequests) {
         const prNumber = pr.number;
         const prTitle = pr.title;
@@ -650,7 +655,7 @@ const run = () => __awaiter(void 0, void 0, void 0, function* () {
             continue;
         }
         const versionBump = getSemver(pr.title);
-        debug(`Version bump: ${versionBump}`);
+        info(`Version bump: ${versionBump}`);
         if ((versionBump === 'major' && autoMerge === 'major') ||
             (versionBump === 'minor' &&
                 (autoMerge === 'major' || autoMerge === 'minor')) ||

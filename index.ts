@@ -6,7 +6,7 @@ type Octokit = ReturnType<typeof getOctokit>
 type MergeMethod = 'merge' | 'squash' | 'rebase'
 
 const debug = (message: string | Error) => {
-  if (getInput('debug') === 'debug') {
+  if (getInput('debug')) {
     console.log('DEBUG', message)
   }
 }
@@ -53,8 +53,9 @@ const getSemver = (prTitle: string): string | null => {
       .split('\n')[0]
       .substr(0, 8)
       .trim()
-    debug(prTitle)
-    debug(`=> from version ${fromVersion} to version ${toVersion}`)
+    debug(
+      `Get versions from ${prTitle} => from version ${fromVersion} to version ${toVersion}`
+    )
     if (fromVersion && toVersion) {
       return diff(fromVersion, toVersion)
     }
@@ -69,15 +70,20 @@ const approve = async (
     repo: string
     prNumber: number
   }
-): Promise<void> => {
+): Promise<boolean> => {
   try {
-    await octokit.pulls.createReview({
+    const x = await octokit.pulls.createReview({
       owner: options.owner,
       repo: options.repo,
       pull_number: options.prNumber,
       event: 'APPROVE',
     })
-  } catch (error) {}
+    return true
+  } catch (err) {
+    info(`Approve failed: ${err.message}`)
+    debug(err)
+    return false
+  }
 }
 
 const merge = async (
@@ -98,6 +104,7 @@ const merge = async (
     })
     return true
   } catch (err) {
+    info(`Merge failed: ${err.message}`)
     debug(err)
     return false
   }
@@ -119,7 +126,7 @@ const run = async () => {
     await octokit.pulls.list({ owner, repo, state: 'open' })
   ).data.filter((pr) => pr.user?.login === prAuthor)
 
-  debug(`Found ${pullRequests.length} matching pull requests`)
+  info(`Found ${pullRequests.length} matching pull requests`)
 
   for (const pr of pullRequests) {
     const prNumber = pr.number
@@ -161,7 +168,7 @@ const run = async () => {
     }
 
     const versionBump = getSemver(pr.title)
-    debug(`Version bump: ${versionBump}`)
+    info(`Version bump: ${versionBump}`)
 
     if (
       (versionBump === 'major' && autoMerge === 'major') ||

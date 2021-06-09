@@ -72,7 +72,7 @@ const approve = async (
   }
 ): Promise<boolean> => {
   try {
-    const x = await octokit.pulls.createReview({
+    await octokit.rest.pulls.createReview({
       owner: options.owner,
       repo: options.repo,
       pull_number: options.prNumber,
@@ -96,7 +96,7 @@ const merge = async (
   }
 ): Promise<boolean> => {
   try {
-    await octokit.pulls.merge({
+    await octokit.rest.pulls.merge({
       owner: options.owner,
       repo: options.repo,
       pull_number: options.prNumber,
@@ -123,7 +123,7 @@ const run = async () => {
   const mergeMethod = getMergeMethod(getInput('merge-method'))
 
   const pullRequests = (
-    await octokit.pulls.list({ owner, repo, state: 'open' })
+    await octokit.rest.pulls.list({ owner, repo, state: 'open' })
   ).data.filter((pr) => pr.user?.login === prAuthor)
 
   info(`Found ${pullRequests.length} matching pull requests`)
@@ -134,7 +134,7 @@ const run = async () => {
 
     info(`Processing PR ${prNumber}: ${prTitle}`)
     const lastCommitHash = pr._links.statuses.href.split('/').pop() || ''
-    const checkRuns = await octokit.checks.listForRef({
+    const checkRuns = await octokit.rest.checks.listForRef({
       owner,
       repo,
       ref: lastCommitHash,
@@ -149,7 +149,7 @@ const run = async () => {
       continue
     }
 
-    const statuses = await octokit.repos.listCommitStatusesForRef({
+    const statuses = await octokit.rest.repos.listCommitStatusesForRef({
       owner,
       repo,
       ref: lastCommitHash,

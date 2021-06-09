@@ -141,7 +141,7 @@ const run = async () => {
     })
 
     const allChecksHaveSucceeded = checkRuns.data.check_runs.every(
-      (run) => run.conclusion === 'success'
+      (run) => run.conclusion === 'success' || run.conclusion === 'neutral'
     )
     if (!allChecksHaveSucceeded) {
       info('All checks did not succeed')

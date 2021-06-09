@@ -650,7 +650,7 @@ const run = () => __awaiter(void 0, void 0, void 0, function* () {
             repo,
             ref: lastCommitHash,
         });
-        const allChecksHaveSucceeded = checkRuns.data.check_runs.every((run) => run.conclusion === 'success');
+        const allChecksHaveSucceeded = checkRuns.data.check_runs.every((run) => run.conclusion === 'success' || run.conclusion === 'neutral');
         if (!allChecksHaveSucceeded) {
             info('All checks did not succeed');
             debugJSON(checkRuns.data);

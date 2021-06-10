@@ -59,7 +59,9 @@ const getSemver = (prTitle: string): string | null => {
     if (fromVersion && toVersion) {
       return diff(fromVersion, toVersion)
     }
-  } catch (_err) {}
+  } catch (_err) {
+    // empty
+  }
   return null
 }
 

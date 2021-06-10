@@ -1,11 +1,12 @@
 {
   "name": "dependabot-cron-action",
-  "version": "0.1",
+  "version": "1.0.0",
   "license": "MIT",
   "author": "Petri Lehtinen <petri@digip.org>",
   "main": "dist/index.js",
   "scripts": {
-    "build": "rm -rf dist/ && tsc && ncc build index.js"
+    "build": "rm -rf dist/ && tsc && ncc build index.js",
+    "lint": "eslint index.ts"
   },
   "dependencies": {},
   "devDependencies": {
@@ -15,7 +16,7 @@
     "@types/semver": "^7.3.6",
     "@typescript-eslint/eslint-plugin": "^4.26.1",
     "@typescript-eslint/parser": "^4.26.1",
-    "@zeit/ncc": "^0.22.3",
+    "@vercel/ncc": "^0.28.6",
     "eslint": "^7.28.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^3.4.0",

@@ -18,7 +18,7 @@ jobs:
     name: Auto-merge dependabot updates
     runs-on: ubuntu-latest
     steps:
-      - uses: akheron/dependabot-cron-action@master
+      - uses: akheron/dependabot-cron-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 ```

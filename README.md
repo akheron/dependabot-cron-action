@@ -27,7 +27,7 @@ jobs:
 
 ### `token` (required)
 
-A GitHub token, usually `{{ secrets.GITHUB_TOKEN }}`.
+A [GitHub token](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token), usually `{{ secrets.GITHUB_TOKEN }}`, with _repo_ scope.
 
 ### `auto-merge` (optional)
 

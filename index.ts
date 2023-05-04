@@ -45,13 +45,13 @@ const getSemver = (prTitle: string): string | null => {
       .split('from ')[1]
       .split(' ')[0]
       .split('\n')[0]
-      .substr(0, 8)
+      .substring(0, 8)
       .trim()
     const toVersion = prTitle
       .split(' to ')[1]
       .split(' ')[0]
       .split('\n')[0]
-      .substr(0, 8)
+      .substring(0, 8)
       .trim()
     debug(
       `Get versions from ${prTitle} => from version ${fromVersion} to version ${toVersion}`
@@ -81,7 +81,7 @@ const approve = async (
       event: 'APPROVE',
     })
     return true
-  } catch (err) {
+  } catch (err: any) {
     info(`Approve failed: ${err.message}`)
     debug(err)
     return false
@@ -105,7 +105,7 @@ const merge = async (
       merge_method: options.mergeMethod,
     })
     return true
-  } catch (err) {
+  } catch (err: any) {
     info(`Merge failed: ${err.message}`)
     debug(err)
     return false

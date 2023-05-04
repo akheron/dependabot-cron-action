@@ -17,7 +17,7 @@ inputs:
     required: false
     description: "If true, output debug logging. Defaults to false."
 runs:
-  using: "node12"
+  using: "node14"
   main: "dist/index.js"
 branding:
   icon: "umbrella"

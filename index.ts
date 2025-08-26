@@ -142,9 +142,15 @@ const run = async () => {
       ref: lastCommitHash,
     })
 
-    const allChecksHaveSucceeded = checkRuns.data.check_runs.every(
-      (run) => run.conclusion === 'success' || run.conclusion === 'neutral'
+    const nonSkippedCheckRuns = checkRuns.data.check_runs.filter(
+      (run) => run.conclusion !== 'skipped'
     )
+
+    const allChecksHaveSucceeded =
+      nonSkippedCheckRuns.length > 0 &&
+      nonSkippedCheckRuns.every(
+        (run) => run.conclusion === 'success' || run.conclusion === 'neutral'
+      )
     if (!allChecksHaveSucceeded) {
       info('All checks did not succeed')
       debugJSON(checkRuns.data)

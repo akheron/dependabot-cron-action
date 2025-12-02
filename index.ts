@@ -182,7 +182,7 @@ const run = async () => {
       (versionBump === 'major' && autoMerge === 'major') ||
       (versionBump === 'minor' &&
         (autoMerge === 'major' || autoMerge === 'minor')) ||
-      (versionBump !== 'major' && versionBump !== 'minor')
+      versionBump === 'patch'
     ) {
       info('Approve and merge')
       await approve(octokit, { owner, repo, prNumber })

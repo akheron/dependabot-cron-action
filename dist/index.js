@@ -148,7 +148,7 @@ const run = () => __awaiter(void 0, void 0, void 0, function* () {
         if ((versionBump === 'major' && autoMerge === 'major') ||
             (versionBump === 'minor' &&
                 (autoMerge === 'major' || autoMerge === 'minor')) ||
-            (versionBump !== 'major' && versionBump !== 'minor')) {
+            versionBump === 'patch') {
             info('Approve and merge');
             yield approve(octokit, { owner, repo, prNumber });
             yield merge(octokit, { owner, repo, prNumber, mergeMethod });

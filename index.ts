@@ -97,19 +97,25 @@ const merge = async (
     mergeMethod: MergeMethod
   }
 ): Promise<boolean> => {
-  try {
-    await octokit.rest.pulls.merge({
-      owner: options.owner,
-      repo: options.repo,
-      pull_number: options.prNumber,
-      merge_method: options.mergeMethod,
-    })
-    return true
-  } catch (err: any) {
-    info(`Merge failed: ${err.message}`)
-    debug(err)
-    return false
+  const retries = 3
+  for (let i = 1; i <= retries; i++) {
+    try {
+      await octokit.rest.pulls.merge({
+        owner: options.owner,
+        repo: options.repo,
+        pull_number: options.prNumber,
+        merge_method: options.mergeMethod,
+      })
+      return true
+    } catch (err: any) {
+      info(`Merge failed (attempt ${i}/${retries}): ${err.message}`)
+      debug(err)
+      if (i < retries) {
+        await new Promise((r) => setTimeout(r, 1000))
+      }
+    }
   }
+  return false
 }
 
 const run = async () => {

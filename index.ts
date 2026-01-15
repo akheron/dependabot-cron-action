@@ -1,5 +1,6 @@
 import { getInput, setFailed } from '@actions/core'
 import { getOctokit } from '@actions/github'
+import { diff } from 'semver'
 
 type Octokit = ReturnType<typeof getOctokit>
 type MergeMethod = 'merge' | 'squash' | 'rebase'
@@ -36,6 +37,32 @@ const getMergeMethod = (value: string): MergeMethod => {
   )
     throw new Error(`Invalid merge method: ${mergeMethod}`)
   return mergeMethod
+}
+
+const getVersionBumpFromTitle = (prTitle: string): string | null => {
+  try {
+    const fromVersion = prTitle
+      .split('from ')[1]
+      .split(' ')[0]
+      .split('\n')[0]
+      .substring(0, 8)
+      .trim()
+    const toVersion = prTitle
+      .split(' to ')[1]
+      .split(' ')[0]
+      .split('\n')[0]
+      .substring(0, 8)
+      .trim()
+    debug(
+      `Get versions from ${prTitle} => from version ${fromVersion} to version ${toVersion}`
+    )
+    if (fromVersion && toVersion) {
+      return diff(fromVersion, toVersion)
+    }
+  } catch (_err) {
+    // empty
+  }
+  return null
 }
 
 const getVersionBumpFromCommit = (
@@ -188,7 +215,12 @@ const run = async () => {
       pull_number: prNumber,
     })
     const commitMessage = commits.data[0]?.commit?.message || ''
-    const versionBump = getVersionBumpFromCommit(commitMessage)
+    let versionBump: string | null = getVersionBumpFromCommit(commitMessage)
+
+    // Fallback to parsing PR title (works for indirect security updates)
+    if (!versionBump) {
+      versionBump = getVersionBumpFromTitle(prTitle)
+    }
 
     info(`Version bump: ${versionBump}`)
 

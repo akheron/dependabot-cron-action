@@ -39,7 +39,7 @@ const getMergeMethod = (value: string): MergeMethod => {
   return mergeMethod
 }
 
-const getSemver = (prTitle: string): string | null => {
+const getVersionBumpFromTitle = (prTitle: string): string | null => {
   try {
     const fromVersion = prTitle
       .split('from ')[1]
@@ -62,6 +62,33 @@ const getSemver = (prTitle: string): string | null => {
   } catch (_err) {
     // empty
   }
+  return null
+}
+
+const getVersionBumpFromCommit = (
+  commitMessage: string
+): 'major' | 'minor' | 'patch' | null => {
+  const updateTypeRegex = /update-type:\s*version-update:semver-(\w+)/g
+  const matches = [...commitMessage.matchAll(updateTypeRegex)]
+
+  if (matches.length === 0) {
+    return null
+  }
+
+  const bumpLevels = matches.map((match) => match[1])
+  debug(`Found update types in commit: ${bumpLevels.join(', ')}`)
+
+  // Return the highest bump level (major > minor > patch)
+  if (bumpLevels.includes('major')) {
+    return 'major'
+  }
+  if (bumpLevels.includes('minor')) {
+    return 'minor'
+  }
+  if (bumpLevels.includes('patch')) {
+    return 'patch'
+  }
+
   return null
 }
 
@@ -181,7 +208,20 @@ const run = async () => {
       continue
     }
 
-    const versionBump = getSemver(pr.title)
+    // Try to get version bump from commit message metadata (works for grouped updates)
+    const commits = await octokit.rest.pulls.listCommits({
+      owner,
+      repo,
+      pull_number: prNumber,
+    })
+    const commitMessage = commits.data[0]?.commit?.message || ''
+    let versionBump: string | null = getVersionBumpFromCommit(commitMessage)
+
+    // Fallback to parsing PR title (works for indirect security updates)
+    if (!versionBump) {
+      versionBump = getVersionBumpFromTitle(prTitle)
+    }
+
     info(`Version bump: ${versionBump}`)
 
     if (

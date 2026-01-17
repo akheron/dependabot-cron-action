@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "rm -rf dist/ && tsc && ncc build index.js",
-    "lint": "eslint index.ts"
+    "lint": "eslint index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@actions/core": "^2.0.2",

@@ -188,6 +188,18 @@ const run = async () => {
   const octokit = getOctokit(token)
   const autoMerge = getAutoMerge(getInput('auto-merge'))
   const mergeMethod = getMergeMethod(getInput('merge-method'))
+  const useGitHubAutoMerge =
+    getInput('skip-checks-for-auto-merge') === 'true' &&
+    (
+      await octokit.graphql<{
+        repository: { autoMergeAllowed: boolean } | null
+      }>(
+        `query($owner: String!, $repo: String!) {
+          repository(owner: $owner, name: $repo) { autoMergeAllowed }
+        }`,
+        { owner, repo }
+      )
+    ).repository?.autoMergeAllowed === true
 
   const pullRequests = (
     await octokit.rest.pulls.list({ owner, repo, state: 'open' })
@@ -200,57 +212,59 @@ const run = async () => {
     const prTitle = pr.title
 
     info(`Processing PR #${prNumber}: ${prTitle}`)
-    const lastCommitHash = pr.head.sha
-    const checkRuns = await octokit.rest.checks.listForRef({
-      owner,
-      repo,
-      ref: lastCommitHash,
-    })
+    if (!useGitHubAutoMerge) {
+      const lastCommitHash = pr.head.sha
+      const checkRuns = await octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref: lastCommitHash,
+      })
 
-    const nonSkippedCheckRuns = checkRuns.data.check_runs.filter(
-      (run) => run.conclusion !== 'skipped'
-    )
-
-    const checksWereRun = nonSkippedCheckRuns.length > 0
-    if (!checksWereRun) {
-      info('No checks were run')
-      debugJSON(checkRuns.data)
-      continue
-    }
-
-    const allChecksHaveSucceeded =
-      checksWereRun &&
-      nonSkippedCheckRuns.every(
-        (run) => run.conclusion === 'success' || run.conclusion === 'neutral'
+      const nonSkippedCheckRuns = checkRuns.data.check_runs.filter(
+        (run) => run.conclusion !== 'skipped'
       )
-    if (!allChecksHaveSucceeded) {
-      info('All checks did not succeed')
-      debugJSON(checkRuns.data)
-      continue
-    }
 
-    const statuses = await octokit.rest.repos.listCommitStatusesForRef({
-      owner,
-      repo,
-      ref: lastCommitHash,
-    })
-    const seenContexts = new Set<string>()
-    const uniqueStatuses = statuses.data.filter((item) => {
-      if (seenContexts.has(item.context)) {
-        return false
+      const checksWereRun = nonSkippedCheckRuns.length > 0
+      if (!checksWereRun) {
+        info('No checks were run')
+        debugJSON(checkRuns.data)
+        continue
       }
 
-      seenContexts.add(item.context)
-      return true
-    })
+      const allChecksHaveSucceeded =
+        checksWereRun &&
+        nonSkippedCheckRuns.every(
+          (run) => run.conclusion === 'success' || run.conclusion === 'neutral'
+        )
+      if (!allChecksHaveSucceeded) {
+        info('All checks did not succeed')
+        debugJSON(checkRuns.data)
+        continue
+      }
 
-    const allStatusesHaveSucceeded = uniqueStatuses.every(
-      (run) => run.state === 'success'
-    )
-    if (!allStatusesHaveSucceeded) {
-      info('All statuses did not succeed')
-      debugJSON(statuses.data)
-      continue
+      const statuses = await octokit.rest.repos.listCommitStatusesForRef({
+        owner,
+        repo,
+        ref: lastCommitHash,
+      })
+      const seenContexts = new Set<string>()
+      const uniqueStatuses = statuses.data.filter((item) => {
+        if (seenContexts.has(item.context)) {
+          return false
+        }
+
+        seenContexts.add(item.context)
+        return true
+      })
+
+      const allStatusesHaveSucceeded = uniqueStatuses.every(
+        (run) => run.state === 'success'
+      )
+      if (!allStatusesHaveSucceeded) {
+        info('All statuses did not succeed')
+        debugJSON(statuses.data)
+        continue
+      }
     }
 
     // Try to get version bump from commit message metadata (works for grouped updates)
@@ -281,6 +295,31 @@ const run = async () => {
         info('Approved successfully')
         if (await merge(octokit, { owner, repo, prNumber, mergeMethod })) {
           info('Merged successfully')
+        } else if (useGitHubAutoMerge) {
+          if (pr.auto_merge) {
+            info('GitHub auto-merge is already enabled')
+            continue
+          }
+          try {
+            await octokit.graphql(
+              `mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                enablePullRequestAutoMerge(input: {
+                  pullRequestId: $pullRequestId,
+                  mergeMethod: $mergeMethod
+                }) {
+                  pullRequest { id }
+                }
+              }`,
+              {
+                pullRequestId: pr.node_id,
+                mergeMethod: mergeMethod.toUpperCase(),
+              }
+            )
+            info('GitHub auto-merge enabled; waiting for required conditions')
+          } catch (err: unknown) {
+            info(`Enabling GitHub auto-merge failed: ${getError(err)}`)
+            debug(err)
+          }
         }
       }
     } else {

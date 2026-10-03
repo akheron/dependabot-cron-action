@@ -34,6 +34,22 @@ A [GitHub token](https://docs.github.com/en/github/authenticating-to-github/keep
 Which version updates to merge automatically: `major`, `minor` or `patch`.
 Defaults to `minor`.
 
+### `skip-checks-for-auto-merge` (optional)
+
+Defaults to `false`. Set to `true` to skip local check-run and commit-status
+evaluation when the repository allows GitHub auto-merge. The PR does not need
+auto-merge enabled beforehand. Author filtering, the `auto-merge` version
+policy, and successful approval still apply.
+
+The action attempts a direct merge using `merge-method`. If it cannot merge
+immediately, it enables GitHub auto-merge where possible, or retains an existing
+auto-merge request. GitHub's merge requirements still apply; the repository
+setting alone does not make checks required. Use an action token without
+branch-protection bypass rights, or enforce branch rules for that actor.
+
+When this option is `false` or omitted, or repository auto-merge is disabled,
+the original checks and direct-merge behavior remain unchanged.
+
 ### `merge-method` (optional)
 
 The merge method to use: `merge`, `squash` or `rebase`. Defaults to `merge`.

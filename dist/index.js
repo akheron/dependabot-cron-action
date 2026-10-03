@@ -27725,55 +27725,63 @@ var run = async () => {
   const octokit = getOctokit(token);
   const autoMerge = getAutoMerge((0, import_core2.getInput)("auto-merge"));
   const mergeMethod = getMergeMethod((0, import_core2.getInput)("merge-method"));
+  const useGitHubAutoMerge = (0, import_core2.getInput)("skip-checks-for-auto-merge") === "true" && (await octokit.graphql(
+    `query($owner: String!, $repo: String!) {
+          repository(owner: $owner, name: $repo) { autoMergeAllowed }
+        }`,
+    { owner, repo }
+  )).repository?.autoMergeAllowed === true;
   const pullRequests = (await octokit.rest.pulls.list({ owner, repo, state: "open" })).data.filter((pr) => pr.user?.login === prAuthor);
   info(`Found ${pullRequests.length} matching pull requests`);
   for (const pr of pullRequests) {
     const prNumber = pr.number;
     const prTitle = pr.title;
     info(`Processing PR #${prNumber}: ${prTitle}`);
-    const lastCommitHash = pr.head.sha;
-    const checkRuns = await octokit.rest.checks.listForRef({
-      owner,
-      repo,
-      ref: lastCommitHash
-    });
-    const nonSkippedCheckRuns = checkRuns.data.check_runs.filter(
-      (run2) => run2.conclusion !== "skipped"
-    );
-    const checksWereRun = nonSkippedCheckRuns.length > 0;
-    if (!checksWereRun) {
-      info("No checks were run");
-      debugJSON(checkRuns.data);
-      continue;
-    }
-    const allChecksHaveSucceeded = checksWereRun && nonSkippedCheckRuns.every(
-      (run2) => run2.conclusion === "success" || run2.conclusion === "neutral"
-    );
-    if (!allChecksHaveSucceeded) {
-      info("All checks did not succeed");
-      debugJSON(checkRuns.data);
-      continue;
-    }
-    const statuses = await octokit.rest.repos.listCommitStatusesForRef({
-      owner,
-      repo,
-      ref: lastCommitHash
-    });
-    const seenContexts = /* @__PURE__ */ new Set();
-    const uniqueStatuses = statuses.data.filter((item) => {
-      if (seenContexts.has(item.context)) {
-        return false;
+    if (!useGitHubAutoMerge) {
+      const lastCommitHash = pr.head.sha;
+      const checkRuns = await octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref: lastCommitHash
+      });
+      const nonSkippedCheckRuns = checkRuns.data.check_runs.filter(
+        (run2) => run2.conclusion !== "skipped"
+      );
+      const checksWereRun = nonSkippedCheckRuns.length > 0;
+      if (!checksWereRun) {
+        info("No checks were run");
+        debugJSON(checkRuns.data);
+        continue;
       }
-      seenContexts.add(item.context);
-      return true;
-    });
-    const allStatusesHaveSucceeded = uniqueStatuses.every(
-      (run2) => run2.state === "success"
-    );
-    if (!allStatusesHaveSucceeded) {
-      info("All statuses did not succeed");
-      debugJSON(statuses.data);
-      continue;
+      const allChecksHaveSucceeded = checksWereRun && nonSkippedCheckRuns.every(
+        (run2) => run2.conclusion === "success" || run2.conclusion === "neutral"
+      );
+      if (!allChecksHaveSucceeded) {
+        info("All checks did not succeed");
+        debugJSON(checkRuns.data);
+        continue;
+      }
+      const statuses = await octokit.rest.repos.listCommitStatusesForRef({
+        owner,
+        repo,
+        ref: lastCommitHash
+      });
+      const seenContexts = /* @__PURE__ */ new Set();
+      const uniqueStatuses = statuses.data.filter((item) => {
+        if (seenContexts.has(item.context)) {
+          return false;
+        }
+        seenContexts.add(item.context);
+        return true;
+      });
+      const allStatusesHaveSucceeded = uniqueStatuses.every(
+        (run2) => run2.state === "success"
+      );
+      if (!allStatusesHaveSucceeded) {
+        info("All statuses did not succeed");
+        debugJSON(statuses.data);
+        continue;
+      }
     }
     const commits = await octokit.rest.pulls.listCommits({
       owner,
@@ -27792,6 +27800,31 @@ var run = async () => {
         info("Approved successfully");
         if (await merge2(octokit, { owner, repo, prNumber, mergeMethod })) {
           info("Merged successfully");
+        } else if (useGitHubAutoMerge) {
+          if (pr.auto_merge) {
+            info("GitHub auto-merge is already enabled");
+            continue;
+          }
+          try {
+            await octokit.graphql(
+              `mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                enablePullRequestAutoMerge(input: {
+                  pullRequestId: $pullRequestId,
+                  mergeMethod: $mergeMethod
+                }) {
+                  pullRequest { id }
+                }
+              }`,
+              {
+                pullRequestId: pr.node_id,
+                mergeMethod: mergeMethod.toUpperCase()
+              }
+            );
+            info("GitHub auto-merge enabled; waiting for required conditions");
+          } catch (err) {
+            info(`Enabling GitHub auto-merge failed: ${getError(err)}`);
+            debug(err);
+          }
         }
       }
     } else {

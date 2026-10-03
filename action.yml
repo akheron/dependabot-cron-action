@@ -7,6 +7,10 @@ inputs:
     description: "GitHub token"
   auto-merge:
     description: "major, minor or patch. Defaults to minor."
+  skip-checks-for-auto-merge:
+    required: false
+    default: "false"
+    description: "If true and the repository allows GitHub auto-merge, skip local status checks and attempt merging, enabling auto-merge if needed. Defaults to false."
   merge-method:
     required: false
     description: "merge, squash or rebase. Defaults to merge."
